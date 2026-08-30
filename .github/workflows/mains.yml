@@ -73,18 +73,16 @@ jobs:
           
           New-Item -ItemType Directory -Force -Path $ngrokDir | Out-Null
           
-          # Resmi ngrok indirme bağlantısı
           Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $ngrokZip
           Expand-Archive -Path $ngrokZip -DestinationPath $ngrokDir -Force
           Remove-Item $ngrokZip -Force
 
-          # Token'ı tanımla
-          & "$ngrokDir\ngrok.exe" config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          # Token'ı doğrudan kodun içine ekledik
+          & "$ngrokDir\ngrok.exe" config add-authtoken "3IdmlGM8fruIlFmArJbxGrD4bsj_4jQbwtQsBYNK8bHwicwut"
 
-          # Arka planda TCP port 3389'u tünelle
+          # Tüneli başlat
           Start-Process -FilePath "$ngrokDir\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
           
-          # Tünelin aktifleşmesi için bekle
           Start-Sleep -Seconds 6
 
       - name: Get Ngrok Connection Address
@@ -92,7 +90,7 @@ jobs:
           try {
               $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
               $tunnel = $response.tunnels | Where-Object { $_.proto -eq "tcp" }
-              $publicUrl = $tunnel.public_url # tcp://0.tcp.ngrok.io:12345 formatında
+              $publicUrl = $tunnel.public_url
               
               Write-Host "Ngrok URL: $publicUrl"
               echo "NGROK_URL=$publicUrl" >> $env:GITHUB_ENV

@@ -66,18 +66,20 @@ jobs:
           $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$delimiter" >> $env:GITHUB_ENV
 
-      - name: Start Serveo Tunnel
+      - name: Start Reliable Tunnel (Localtunnel)
         run: |
-          # Arka planda SSH üzerinden serveo.net ile TCP 3389 portunu dış dünyaya tünelle
-          $tunnelProcess = Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net" -PassThru -NoNewWindow
+          # Node.js kullanarak kart istemeyen ve doğrudan hatasız tünel açan localtunnel aracını kuruyoruz
+          npm install -g localtunnel
           
-          Start-Sleep -Seconds 8
+          # Arka planda port 3389'u tünelle ve çıktıyı dosyaya yaz
+          Start-Process -FilePath "lt.cmd" -ArgumentList "--port 3389" -NoNewWindow
+          
+          Start-Sleep -Seconds 7
 
       - name: Get Connection Address
         run: |
           Write-Host "`n=== HERKESE ACIK RDP EKRANI ==="
-          Write-Host "Serveo aktif edildi. Yukarzdaki loglar arasında 'Forwarding TCP connections from serveo.net:XXXXX' yazan portu kopyalayın."
-          Write-Host "Baglanti Adresi: serveo.net:PORT (ornegin: serveo.net:12345)"
+          Write-Host "Localtunnel aktif edildi. Yukarzdaki loglar arasinda veya asagida olusan 'your url is: https://...' adresini kontrol edin."
           Write-Host "---------------------------------"
           Write-Host "$env:RDP_CREDS"
           Write-Host "=================================`n"

@@ -18,12 +18,11 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
                              -Name "SecurityLayer" -Value 0 -Force
 
-          # Hata almamak icin kural var mi kontrol ederek siliyoruz
-          $rule = Get-NetFirewallRule -Name "RDP-Tailscale" -ErrorAction SilentlyContinue
+          $rule = Get-NetFirewallRule -Name "RDP-External" -ErrorAction SilentlyContinue
           if ($rule) {
-              netsh advfirewall firewall delete rule name="RDP-Tailscale"
+              netsh advfirewall firewall delete rule name="RDP-External"
           }
-          netsh advfirewall firewall add rule name="RDP-Tailscale" `
+          netsh advfirewall firewall add rule name="RDP-External" `
             dir=in action=allow protocol=TCP localport=3389
 
           Restart-Service -Name TermService -Force
@@ -62,58 +61,47 @@ jobs:
               $allCreds += "Kullanici: $username | Sifre: $password"
           }
 
-          # GitHub Actions multi-line environment variable format
           $delimiter = "EOF_CREDENTIALS"
           echo "RDP_CREDS<<$delimiter" >> $env:GITHUB_ENV
           $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$delimiter" >> $env:GITHUB_ENV
 
-      - name: Install Tailscale
+      - name: Setup Ngrok Tunnel
         run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $installerPath = "$env:TEMP\tailscale.msi"
+          # Ngrok'u indir ve kur
+          winget install --id Ngrok.Ngrok -e --silent
           
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
-          Remove-Item $installerPath -Force
+          # Ngrok Auth Token'ı GitHub Secrets'tan alıyoruz (Kendi ngrok token'ını secrets kısmına NGROK_AUTH_TOKEN adıyla eklemelisin)
+          & "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe" config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          
+          # Arka planda TCP tüneli başlat (Port 3389)
+          Start-Process -FilePath "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
+          
+          # Ngrok'un tünel adresini alabilmesi için biraz bekleyelim
+          Start-Sleep -Seconds 5
 
-      - name: Establish Tailscale Connection
+      - name: Get Ngrok Connection Address
         run: |
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
-          
-          $tsIP = $null
-          $retries = 0
-          while (-not $tsIP -and $retries -lt 10) {
-              $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-              Start-Sleep -Seconds 5
-              $retries++
+          try {
+              $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+              $tunnel = $response.tunnels | Where-Object { $_.proto -eq "tcp" }
+              $publicUrl = $tunnel.public_url # tcp://0.tcp.ngrok.io:12345 formatında gelir
+              
+              Write-Host "Ngrok URL: $publicUrl"
+              echo "NGROK_URL=$publicUrl" >> $env:GITHUB_ENV
+          } catch {
+              Write-Warning "Ngrok adresi otomatik alinamadi. Ngrok API henuz hazir degil."
           }
-          
-          if (-not $tsIP) {
-              Write-Error "Tailscale IP not assigned. Exiting."
-              exit 1
-          }
-          echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
-      
-      - name: Verify RDP Accessibility
-        run: |
-          Write-Host "Tailscale IP: $env:TAILSCALE_IP"
-          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
-          if (-not $testResult.TcpTestSucceeded) {
-              Write-Error "TCP connection to RDP port 3389 failed"
-              exit 1
-          }
-          Write-Host "TCP connectivity successful!"
 
       - name: Maintain Connection
         run: |
-          Write-Host "`n=== MULTI-USER RDP ACCESS ==="
-          Write-Host "IP Adresi: $env:TAILSCALE_IP"
+          Write-Host "`n=== HERkESE ACIK RDP EKRANI ==="
+          Write-Host "Baglanti Adresi (Ngrok): $env:NGROK_URL"
           Write-Host "---------------------------------"
           Write-Host "$env:RDP_CREDS"
           Write-Host "=================================`n"
           
           while ($true) {
-              Write-Host "[$(Get-Date)] FlbsVds Havuzu Aktif - Kapatmak icin workflow'u iptal edin"
+              Write-Host "[$(Get-Date)] VDS Havuzu Aktif ve Disaridan Erisilebilir"
               Start-Sleep -Seconds 300
           }

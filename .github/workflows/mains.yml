@@ -18,7 +18,11 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
                              -Name "SecurityLayer" -Value 0 -Force
 
-          netsh advfirewall firewall delete rule name="RDP-Tailscale"
+          # Hata almamak icin kural var mi kontrol ederek siliyoruz
+          $rule = Get-NetFirewallRule -Name "RDP-Tailscale" -ErrorAction SilentlyContinue
+          if ($rule) {
+              netsh advfirewall firewall delete rule name="RDP-Tailscale"
+          }
           netsh advfirewall firewall add rule name="RDP-Tailscale" `
             dir=in action=allow protocol=TCP localport=3389
 
@@ -58,8 +62,11 @@ jobs:
               $allCreds += "Kullanici: $username | Sifre: $password"
           }
 
-          $envContent = $allCreds -join "`n"
-          echo "RDP_CREDS=$envContent" >> $env:GITHUB_ENV
+          # GitHub Actions multi-line environment variable format
+          $delimiter = "EOF_CREDENTIALS"
+          echo "RDP_CREDS<<$delimiter" >> $env:GITHUB_ENV
+          $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "$delimiter" >> $env:GITHUB_ENV
 
       - name: Install Tailscale
         run: |

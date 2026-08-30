@@ -66,20 +66,24 @@ jobs:
           $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$delimiter" >> $env:GITHUB_ENV
 
-      - name: Start Reliable Tunnel (Localtunnel)
+      - name: Download and Run Playit.gg (TCP Tunnel)
         run: |
-          # Node.js kullanarak kart istemeyen ve doğrudan hatasız tünel açan localtunnel aracını kuruyoruz
-          npm install -g localtunnel
+          $playitDir = "C:\Playit"
+          New-Item -ItemType Directory -Force -Path $playitDir | Out-Null
           
-          # Arka planda port 3389'u tünelle ve çıktıyı dosyaya yaz
-          Start-Process -FilePath "lt.cmd" -ArgumentList "--port 3389" -NoNewWindow
+          # Playit.gg Windows uygulamasını indiriyoruz
+          $playitUrl = "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.2/playit-0.15.2-windows-x86_64.exe"
+          Invoke-WebRequest -Uri $playitUrl -OutFile "$playitDir\playit.exe"
+
+          # Arka planda çalıştır
+          Start-Process -FilePath "$playitDir\playit.exe" -NoNewWindow
           
-          Start-Sleep -Seconds 7
+          Start-Sleep -Seconds 10
 
       - name: Get Connection Address
         run: |
-          Write-Host "`n=== HERKESE ACIK RDP EKRANI ==="
-          Write-Host "Localtunnel aktif edildi. Yukarzdaki loglar arasinda veya asagida olusan 'your url is: https://...' adresini kontrol edin."
+          Write-Host "`n=== HERKESE ACIK RDP EKRANI (PLAYIT) ==="
+          Write-Host "Playit.gg baslatildi. GitHub loglarinda cikan 'Allocated port' veya 'Address:' kısmındaki TCP adresini (ornek: xxxx.ply.gg:12345) kopyalayin."
           Write-Host "---------------------------------"
           Write-Host "$env:RDP_CREDS"
           Write-Host "=================================`n"

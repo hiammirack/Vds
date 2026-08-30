@@ -66,42 +66,18 @@ jobs:
           $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$delimiter" >> $env:GITHUB_ENV
 
-      - name: Setup and Run Ngrok Tunnel
+      - name: Start Serveo Tunnel
         run: |
-          $ngrokZip = "$env:TEMP\ngrok.zip"
-          $ngrokDir = "C:\Ngrok"
+          # Arka planda SSH üzerinden serveo.net ile TCP 3389 portunu dış dünyaya tünelle
+          $tunnelProcess = Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net" -PassThru -NoNewWindow
           
-          New-Item -ItemType Directory -Force -Path $ngrokDir | Out-Null
-          
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $ngrokZip
-          Expand-Archive -Path $ngrokZip -DestinationPath $ngrokDir -Force
-          Remove-Item $ngrokZip -Force
+          Start-Sleep -Seconds 8
 
-          # Token'ı doğrudan kodun içine ekledik
-          & "$ngrokDir\ngrok.exe" config add-authtoken "3IdmlGM8fruIlFmArJbxGrD4bsj_4jQbwtQsBYNK8bHwicwut"
-
-          # Tüneli başlat
-          Start-Process -FilePath "$ngrokDir\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
-          
-          Start-Sleep -Seconds 6
-
-      - name: Get Ngrok Connection Address
-        run: |
-          try {
-              $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-              $tunnel = $response.tunnels | Where-Object { $_.proto -eq "tcp" }
-              $publicUrl = $tunnel.public_url
-              
-              Write-Host "Ngrok URL: $publicUrl"
-              echo "NGROK_URL=$publicUrl" >> $env:GITHUB_ENV
-          } catch {
-              Write-Warning "Ngrok adresi alinamadi."
-          }
-
-      - name: Maintain Connection
+      - name: Get Connection Address
         run: |
           Write-Host "`n=== HERKESE ACIK RDP EKRANI ==="
-          Write-Host "Baglanti Adresi (Ngrok): $env:NGROK_URL"
+          Write-Host "Serveo aktif edildi. Yukarzdaki loglar arasında 'Forwarding TCP connections from serveo.net:XXXXX' yazan portu kopyalayın."
+          Write-Host "Baglanti Adresi: serveo.net:PORT (ornegin: serveo.net:12345)"
           Write-Host "---------------------------------"
           Write-Host "$env:RDP_CREDS"
           Write-Host "=================================`n"

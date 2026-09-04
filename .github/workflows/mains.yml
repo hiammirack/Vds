@@ -9,29 +9,12 @@ jobs:
     timeout-minutes: 3600
 
     steps:
-      - name: System Environment Diagnostics and Initialization
-        run: |
-          Write-Host "=========================================================="
-          Write-Host "=== WINDOWS VDS ENTERPRISE CORE SYSTEM INITIALIZATION ==="
-          Write-Host "=========================================================="
-          $osVersion = (Get-CimInstance Win32_OperatingSystem).Caption
-          $totalRam = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
-          Write-Host "Target OS Detected: $osVersion"
-          Write-Host "Allocated Hardware Memory: $totalRam GB"
-          Write-Host "Initializing core services architecture..."
-
       - name: Configure Advanced Terminal Server and RDP Firewall Rules
         run: |
-          Write-Host "[1/4] Disabling incoming connection restrictions..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
-          
-          Write-Host "[2/4] Bypassing Network Level Authentication (NLA) requirements..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
-          
-          Write-Host "[3/4] Adjusting security layer configurations..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
 
-          Write-Host "[4/4] Configuring Windows Defender Firewall for port 3389..."
           $ruleName = "RDP-External-Enterprise-Access"
           $existingRule = Get-NetFirewallRule -Name $ruleName -ErrorAction SilentlyContinue
           if ($existingRule) {
@@ -39,15 +22,11 @@ jobs:
           }
           netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=3389
 
-          Write-Host "Restarting Remote Desktop Service (TermService)..."
           Restart-Service -Name TermService -Force
-          Write-Host "RDP core configurations successfully applied."
 
       - name: Generate Multi-User Environment Pool (FlbsVds1-4)
         run: |
-          Write-Host "Initializing user pool generation sequence..."
           Add-Type -AssemblyName System.Security
-          
           $charSet = @{
               Upper   = [char[]](65..90)
               Lower   = [char[]](97..122)
@@ -59,7 +38,6 @@ jobs:
 
           for ($index = 1; $index -le 4; $index++) {
               $targetUser = "FlbsVds$index"
-              Write-Host "Configuring account profile: $targetUser"
               
               $passwordArray = @()
               $passwordArray += $charSet.Upper | Get-Random -Count 4
@@ -85,30 +63,20 @@ jobs:
           echo "RDP_CREDENTIALS_OUTPUT<<$envDelimiter" >> $env:GITHUB_ENV
           $compiledCredentials -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$envDelimiter" >> $env:GITHUB_ENV
-          Write-Host "All local user accounts successfully created and added to privilege groups."
 
       - name: Launch Secure TCP Tunneling Gateway
         run: |
-          Write-Host "Establishing secure communication pipeline via SSH tunneling..."
           Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
-          Write-Host "Waiting for tunnel initialization to stabilize..."
-          Start-Sleep -Seconds 12
-          Write-Host "Tunnel network successfully bound to port 3389."
+          Start-Sleep -Seconds 10
 
       - name: Output Connection Matrix and Maintain Active Lease
         run: |
           Write-Host "`n=========================================================="
           Write-Host "=== RDP BAGLANTI EKRANI VE ERISIM BILGILERI ==="
           Write-Host "=========================================================="
-          Write-Host "Asagidaki 'tcp://...' adresini kopyalayip Uzak Masaustune yazin:"
-          Write-Host "----------------------------------------------------------"
           Write-Host "$env:RDP_CREDENTIALS_OUTPUT"
           Write-Host "=========================================================="
           
-          $counter = 0
           while ($true) {
-              $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-              Write-Host "[$timestamp] VDS Havuzu Aktif, Kararli ve Disaridan Erisilebilir (Loop: $counter)"
-              $counter++
               Start-Sleep -Seconds 300
           }

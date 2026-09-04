@@ -15,27 +15,6 @@ jobs:
           netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: EkGuvenlik1
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik2
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik3
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik4
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik5
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik6
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik7
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik8
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik9
-        run: Start-Sleep -Seconds 1
-      - name: EkGuvenlik10
-        run: Start-Sleep -Seconds 1
-
       - name: Kullanicilar
         run: |
           Add-Type -AssemblyName System.Security
@@ -55,36 +34,9 @@ jobs:
           $u -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$d" >> $env:GITHUB_ENV
 
-      - name: SistemHazirlik1
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik2
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik3
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik4
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik5
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik6
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik7
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik8
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik9
-        run: Start-Sleep -Seconds 1
-      - name: SistemHazirlik10
-        run: Start-Sleep -Seconds 1
-
       - name: Baglanti Ver
         run: |
-          $tunnel = Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net" -PassThru
-          Start-Sleep -Seconds 6
-          
-          if ($tunnel.HasExited) {
-              Write-Host "Serveo port 0 hatası verdi, Pinggy yedek tüneli başlatılıyor..."
-              Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 a.pinggy.io" -NoNewWindow
-          }
+          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R localhost:3389:localhost:3389 a.pinggy.io" -NoNewWindow
           Start-Sleep -Seconds 10
 
       - name: Loglar

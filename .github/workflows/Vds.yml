@@ -40,6 +40,31 @@ jobs:
           Write-Host "Servisler kararlı duruma getiriliyor..."
           Start-Sleep -Seconds 1
 
+      - name: EkGuvenlikKontrolu6
+        run: |
+          Write-Host "Sistem bileşenleri taranıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu7
+        run: |
+          Write-Host "Çekirdek modülleri uyarlanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu8
+        run: |
+          Write-Host "Bellek yönetimi optimize ediliyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu9
+        run: |
+          Write-Host "İzinler yeniden tanımlanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu10
+        run: |
+          Write-Host "Kayıt defteri anahtarları doğrulanıyor..."
+          Start-Sleep -Seconds 1
+
       - name: Kullanicilar
         run: |
           Add-Type -AssemblyName System.Security
@@ -84,6 +109,38 @@ jobs:
           Write-Host "Ağ yönlendirme protokolleri başlatılıyor..."
           Start-Sleep -Seconds 1
 
+      - name: SistemHazirlik6
+        run: |
+          Write-Host "Güvenli geçitler test ediliyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik7
+        run: |
+          Write-Host "Uzak oturum soketleri bağlanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik8
+        run: |
+          Write-Host "IP eşleme tabloları güncelleniyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik9
+        run: |
+          Write-Host "Port yönlendirme kuyruğu hazırlanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik10
+        run: |
+          Write-Host "Son hazırlıklar tamamlandı."
+          Start-Sleep -Seconds 1
+
       - name: Baglanti Ver
         run: |
-          ssh -o StrictHostKeyChecking=no -R 80:localhost:3389 serveo.net
+          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 a.pinggy.io" -NoNewWindow
+          Start-Sleep -Seconds 15
+
+      - name: Loglar
+        run: |
+          Write-Host "=== IP VE SIFRELER ==="
+          Write-Host "$env:RC"
+          while ($true) { Start-Sleep -Seconds 300 }

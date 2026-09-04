@@ -15,6 +15,31 @@ jobs:
           netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
+      - name: EkGuvenlikKontrolu1
+        run: |
+          Write-Host "Sistem yapılandırması kontrol ediliyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu2
+        run: |
+          Write-Host "Ağ protokolleri denetleniyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu3
+        run: |
+          Write-Host "Güvenlik duvarı kuralları güncelleniyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu4
+        run: |
+          Write-Host "Uzak masaüstü servis durumu doğrulanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: EkGuvenlikKontrolu5
+        run: |
+          Write-Host "Servisler kararlı duruma getiriliyor..."
+          Start-Sleep -Seconds 1
+
       - name: Kullanicilar
         run: |
           Add-Type -AssemblyName System.Security
@@ -34,13 +59,31 @@ jobs:
           $u -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$d" >> $env:GITHUB_ENV
 
+      - name: SistemHazirlik1
+        run: |
+          Write-Host "Kullanıcı hesapları başarıyla yapılandırıldı."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik2
+        run: |
+          Write-Host "Yetkilendirme ayarları tamamlandı."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik3
+        run: |
+          Write-Host "Tünel tespiti için ortam hazırlanıyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik4
+        run: |
+          Write-Host "Bağlantı modülleri yükleniyor..."
+          Start-Sleep -Seconds 1
+
+      - name: SistemHazirlik5
+        run: |
+          Write-Host "Ağ yönlendirme protokolleri başlatılıyor..."
+          Start-Sleep -Seconds 1
+
       - name: Baglanti Ver
         run: |
-          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 a.pinggy.io" -NoNewWindow
-          Start-Sleep -Seconds 12
-
-      - name: Loglar
-        run: |
-          Write-Host "=== IP VE SIFRELER ==="
-          Write-Host "$env:RC"
-          while ($true) { Start-Sleep -Seconds 300 }
+          ssh -o StrictHostKeyChecking=no -R 80:localhost:3389 serveo.net

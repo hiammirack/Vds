@@ -1,38 +1,53 @@
-name: RDP
+name: RDP-Enterprise-Automated-Deployment-Pipeline
 
 on:
   workflow_dispatch:
 
 jobs:
-  secure-rdp:
+  initialize-and-configure-windows-vds:
     runs-on: windows-latest
     timeout-minutes: 3600
 
     steps:
-      - name: Configure Core RDP Settings and Optimize Performance
+      - name: System Environment Diagnostics and Initialization
         run: |
-          Write-Host "Uzak Masaustu servisleri yapilandiriliyor..."
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
-                             -Name "fDenyTSConnections" -Value 0 -Force
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-                             -Name "UserAuthentication" -Value 0 -Force
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-                             -Name "SecurityLayer" -Value 0 -Force
+          Write-Host "=========================================================="
+          Write-Host "=== WINDOWS VDS ENTERPRISE CORE SYSTEM INITIALIZATION ==="
+          Write-Host "=========================================================="
+          $osVersion = (Get-CimInstance Win32_OperatingSystem).Caption
+          $totalRam = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
+          Write-Host "Target OS Detected: $osVersion"
+          Write-Host "Allocated Hardware Memory: $totalRam GB"
+          Write-Host "Initializing core services architecture..."
 
-          $rule = Get-NetFirewallRule -Name "RDP-External" -ErrorAction SilentlyContinue
-          if ($rule) {
-              netsh advfirewall firewall delete rule name="RDP-External"
+      - name: Configure Advanced Terminal Server and RDP Firewall Rules
+        run: |
+          Write-Host "[1/4] Disabling incoming connection restrictions..."
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          
+          Write-Host "[2/4] Bypassing Network Level Authentication (NLA) requirements..."
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+          
+          Write-Host "[3/4] Adjusting security layer configurations..."
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+
+          Write-Host "[4/4] Configuring Windows Defender Firewall for port 3389..."
+          $ruleName = "RDP-External-Enterprise-Access"
+          $existingRule = Get-NetFirewallRule -Name $ruleName -ErrorAction SilentlyContinue
+          if ($existingRule) {
+              netsh advfirewall firewall delete rule name="$ruleName"
           }
-          netsh advfirewall firewall add rule name="RDP-External" `
-            dir=in action=allow protocol=TCP localport=3389
+          netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=3389
 
+          Write-Host "Restarting Remote Desktop Service (TermService)..."
           Restart-Service -Name TermService -Force
-          Write-Host "RDP ayarlari basariyla tamamlandi."
+          Write-Host "RDP core configurations successfully applied."
 
-      - name: Create Multiple FlbsVds Users with Advanced Security
+      - name: Generate Multi-User Environment Pool (FlbsVds1-4)
         run: |
-          Write-Host "Coklu kullanici havuzu olusturuluyor..."
+          Write-Host "Initializing user pool generation sequence..."
           Add-Type -AssemblyName System.Security
+          
           $charSet = @{
               Upper   = [char[]](65..90)
               Lower   = [char[]](97..122)
@@ -40,53 +55,60 @@ jobs:
               Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
           }
 
-          $allCreds = @()
+          $compiledCredentials = @()
 
-          for ($i = 1; $i -le 4; $i++) {
-              $username = "FlbsVds$i"
+          for ($index = 1; $index -le 4; $index++) {
+              $targetUser = "FlbsVds$index"
+              Write-Host "Configuring account profile: $targetUser"
               
-              $rawPassword = @()
-              $rawPassword += $charSet.Upper | Get-Random -Count 4
-              $rawPassword += $charSet.Lower | Get-Random -Count 4
-              $rawPassword += $charSet.Number | Get-Random -Count 4
-              $rawPassword += $charSet.Special | Get-Random -Count 4
-              $password = -join ($rawPassword | Sort-Object { Get-Random })
-              $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+              $passwordArray = @()
+              $passwordArray += $charSet.Upper | Get-Random -Count 4
+              $passwordArray += $charSet.Lower | Get-Random -Count 4
+              $passwordArray += $charSet.Number | Get-Random -Count 4
+              $passwordArray += $charSet.Special | Get-Random -Count 4
               
-              if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                  Remove-LocalUser -Name $username
+              $generatedPassword = -join ($passwordArray | Sort-Object { Get-Random })
+              $securePasswordObj = ConvertTo-SecureString $generatedPassword -AsPlainText -Force
+              
+              if (Get-LocalUser -Name $targetUser -ErrorAction SilentlyContinue) {
+                  Remove-LocalUser -Name $targetUser -Confirm:$false
               }
 
-              New-LocalUser -Name $username -Password $securePass -AccountNeverExpires
-              Add-LocalGroupMember -Group "Administrators" -Member $username
-              Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username
+              New-LocalUser -Name $targetUser -Password $securePasswordObj -AccountNeverExpires -PasswordNeverExpires
+              Add-LocalGroupMember -Group "Administrators" -Member $targetUser
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member $targetUser
 
-              $allCreds += "Kullanici: $username | Sifre: $password"
+              $compiledCredentials += "Kullanici: $targetUser | Sifre: $generatedPassword"
           }
 
-          $delimiter = "EOF_CREDENTIALS"
-          echo "RDP_CREDS<<$delimiter" >> $env:GITHUB_ENV
-          $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          echo "$delimiter" >> $env:GITHUB_ENV
-          Write-Host "Tum kullanicilar basariyla tanimlandi."
+          $envDelimiter = "ENTERPRISE_CREDENTIALS_BLOCK"
+          echo "RDP_CREDENTIALS_OUTPUT<<$envDelimiter" >> $env:GITHUB_ENV
+          $compiledCredentials -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "$envDelimiter" >> $env:GITHUB_ENV
+          Write-Host "All local user accounts successfully created and added to privilege groups."
 
-      - name: Initialize Network Tunneling Services
+      - name: Launch Secure TCP Tunneling Gateway
         run: |
-          Write-Host "Harici erisim icin tunelleme baslatiliyor..."
+          Write-Host "Establishing secure communication pipeline via SSH tunneling..."
           Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
-          Start-Sleep -Seconds 10
-          Write-Host "Tunelleme aktif hale getirildi."
+          Write-Host "Waiting for tunnel initialization to stabilize..."
+          Start-Sleep -Seconds 12
+          Write-Host "Tunnel network successfully bound to port 3389."
 
-      - name: Display Connection Details and Maintain Pool
+      - name: Output Connection Matrix and Maintain Active Lease
         run: |
-          Write-Host "`n================================="
-          Write-Host "=== HERKESE ACIK RDP EKRANI ==="
-          Write-Host "Loglar arasindaki 'tcp://...' adresini kopyalayip Uzak Masaustune yazabilirsiniz."
-          Write-Host "---------------------------------"
-          Write-Host "$env:RDP_CREDS"
-          Write-Host "=================================`n"
+          Write-Host "`n=========================================================="
+          Write-Host "=== RDP BAGLANTI EKRANI VE ERISIM BILGILERI ==="
+          Write-Host "=========================================================="
+          Write-Host "Asagidaki 'tcp://...' adresini kopyalayip Uzak Masaustune yazin:"
+          Write-Host "----------------------------------------------------------"
+          Write-Host "$env:RDP_CREDENTIALS_OUTPUT"
+          Write-Host "=========================================================="
           
+          $counter = 0
           while ($true) {
-              Write-Host "[$(Get-Date)] VDS Havuzu Aktif ve Disaridan Erisilebilir durumda calismaya devam ediyor..."
+              $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+              Write-Host "[$timestamp] VDS Havuzu Aktif, Kararli ve Disaridan Erisilebilir (Loop: $counter)"
+              $counter++
               Start-Sleep -Seconds 300
           }

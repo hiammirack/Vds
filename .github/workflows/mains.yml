@@ -66,29 +66,20 @@ jobs:
           $allCreds -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$delimiter" >> $env:GITHUB_ENV
 
-      - name: Download and Run Playit.gg (TCP Tunnel)
+      - name: Start TCP Tunnel
         run: |
-          $playitDir = "C:\Playit"
-          New-Item -ItemType Directory -Force -Path $playitDir | Out-Null
-          
-          # Playit.gg Windows uygulamasını indiriyoruz
-          $playitUrl = "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.2/playit-0.15.2-windows-x86_64.exe"
-          Invoke-WebRequest -Uri $playitUrl -OutFile "$playitDir\playit.exe"
-
-          # Arka planda çalıştır
-          Start-Process -FilePath "$playitDir\playit.exe" -NoNewWindow
-          
-          Start-Sleep -Seconds 10
+          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
+          Start-Sleep -Seconds 8
 
       - name: Get Connection Address
         run: |
-          Write-Host "`n=== HERKESE ACIK RDP EKRANI (PLAYIT) ==="
-          Write-Host "Playit.gg baslatildi. GitHub loglarinda cikan 'Allocated port' veya 'Address:' kısmındaki TCP adresini (ornek: xxxx.ply.gg:12345) kopyalayin."
+          Write-Host "`n=== RDP BAGLANTI EKRANI ==="
+          Write-Host "Loglarda cikan 'tcp://...' adresini (ornek: tcp://xxx.pinggy.link:12345) dogrudan Uzak Masaustune yazabilirsin."
           Write-Host "---------------------------------"
           Write-Host "$env:RDP_CREDS"
           Write-Host "=================================`n"
           
           while ($true) {
-              Write-Host "[$(Get-Date)] VDS Havuzu Aktif ve Disaridan Erisilebilir"
+              Write-Host "[$(Get-Date)] VDS Havuzu Aktif ve Erisilebilir"
               Start-Sleep -Seconds 300
           }

@@ -1,45 +1,47 @@
-Skip to content
-hiammirack
-Vds
-Repository navigation
-Code
-Issues
-Pull requests
-Agents
-Actions
-Projects
-Wiki
-Security and quality
-RDP
-w #13
-All jobs
-Run details
-secure-rdp
-failed now in 12s
-Search logs
-0s
-7s
-Ok.
-Run Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
-1s
-Run Add-Type -AssemblyName System.Security
-  
-Name     Enabled Description
-----     ------- -----------
-FlbsVds1 True    
-FlbsVds2 True    
-FlbsVds3 True    
-FlbsVds4 True    
-1s
-Run $playitDir = "C:\Playit"
-  
-Invoke-WebRequest: D:\a\_temp\6a9a4d45-4a17-4ece-84b4-dc89ae939e88.ps1:7
-Line |
-   7 |  Invoke-WebRequest -Uri $playitUrl -OutFile "$playitDir\playit.exe"
-     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     |                                                                      :root {       --tab-size-preference: 4;    
-     | }      pre, code {       tab-size: var(--tab-size-preference);     }                                   
-     | {"locale":"en","featureFlags":["actions_enable_background_steps","activity_diff_file_tree","activity_repos_file_tree","activity_repos_overview_header","activity_repos_overview_sidebar","agent_author_search_expansion","agent_author_search_expansion_ui_pulls","alternate_user_config_repo","billing_billable_licenses_cost_center_bucket_fix","billing_budget_expiration","billing_copilot_license_budget_use_license_count","billing_cost_center_list_assigned_resources","billing_discount_threshold_notification","block_user_close_content","ccr_files_changed_model_picker","code_quality_enablement_banner_targeting","code_quality_new_repo_selection_card","code_quality_remove_preview","code_view_json_404","code_view_raf_sticky_lines","codespaces_prebuild_region_target_update","coding_agent_create_task_strip","coding_agent_third_party_model_ui","contentful_primer_code_blocks","copilot_agent_snippy","copilot_api_agentic
-Error: Process completed with exit code 1.
-0s
-0s
+name: w
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    steps:
+      - name: Ayarlar
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+          netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+          Restart-Service -Name TermService -Force
+
+      - name: Kullanicilar
+        run: |
+          Add-Type -AssemblyName System.Security
+          $u = @()
+          for ($i = 1; $i -le 4; $i++) {
+              $n = "FlbsVds$i"
+              $p = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 12 | ForEach-Object {[char]$_})
+              $s = ConvertTo-SecureString $p -AsPlainText -Force
+              if (Get-LocalUser -Name $n -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $n }
+              New-LocalUser -Name $n -Password $s
+              Add-LocalGroupMember -Group "Administrators" -Member $n
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member $n
+              $u += "Kullanici: $n | Sifre: $p"
+          }
+          $d = "CC"
+          echo "RC<<$d" >> $env:GITHUB_ENV
+          $u -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "$d" >> $env:GITHUB_ENV
+
+      - name: Baglanti Ver
+        run: |
+          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
+          Start-Sleep -Seconds 8
+
+      - name: Loglar
+        run: |
+          Write-Host "=== IP VE SIFRELER ==="
+          Write-Host "$env:RC"
+          while ($true) { Start-Sleep -Seconds 300 }
+          

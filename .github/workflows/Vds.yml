@@ -21,13 +21,13 @@ jobs:
           $u = @()
           for ($i = 1; $i -le 4; $i++) {
               $n = "FlbsVds$i"
-              $p = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 12 | ForEach-Object {[char]$_})
-              $s = ConvertTo-SecureString "$p!" -AsPlainText -Force
+              $p = "Flbs2026!Server$i"
+              $s = ConvertTo-SecureString $p -AsPlainText -Force
               if (Get-LocalUser -Name $n -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $n }
               New-LocalUser -Name $n -Password $s
               Add-LocalGroupMember -Group "Administrators" -Member $n
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member $n
-              $u += "Kullanici: $n | Sifre: $p!"
+              $u += "Kullanici: $n | Sifre: $p"
           }
           $d = "CC"
           echo "RC<<$d" >> $env:GITHUB_ENV

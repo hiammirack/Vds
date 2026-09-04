@@ -1,83 +1,49 @@
-name: RDP-Enterprise-Automated-Deployment-Pipeline
+name: RDP
 
 on:
   workflow_dispatch:
 
 jobs:
-  initialize-and-configure-windows-vds:
+  run-rdp:
     runs-on: windows-latest
     timeout-minutes: 3600
 
     steps:
-      - name: Configure Advanced Terminal Server and RDP Firewall Rules
+      - name: RDP Ayarlari
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
-
-          $ruleName = "RDP-External-Enterprise-Access"
-          $existingRule = Get-NetFirewallRule -Name $ruleName -ErrorAction SilentlyContinue
-          if ($existingRule) {
-              netsh advfirewall firewall delete rule name="$ruleName"
-          }
-          netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=3389
-
+          netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Generate Multi-User Environment Pool (FlbsVds1-4)
+      - name: Kullanicilari Olustur
         run: |
           Add-Type -AssemblyName System.Security
-          $charSet = @{
-              Upper   = [char[]](65..90)
-              Lower   = [char[]](97..122)
-              Number  = [char[]](48..57)
-              Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
+          $u = @()
+          for ($i = 1; $i -le 4; $i++) {
+              $n = "FlbsVds$i"
+              $p = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 12 | ForEach-Object {[char]$_})
+              $s = ConvertTo-SecureString $p -AsPlainText -Force
+              if (Get-LocalUser -Name $n -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $n }
+              New-LocalUser -Name $n -Password $s
+              Add-LocalGroupMember -Group "Administrators" -Member $n
+              Add-LocalGroupMember -Group "Remote Desktop Users" -Member $n
+              $u += "Kullanici: $n | Sifre: $p"
           }
+          $d = "CRED_BLOCK"
+          echo "RDP_C<<$d" >> $env:GITHUB_ENV
+          $u -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "$d" >> $env:GITHUB_ENV
 
-          $compiledCredentials = @()
-
-          for ($index = 1; $index -le 4; $index++) {
-              $targetUser = "FlbsVds$index"
-              
-              $passwordArray = @()
-              $passwordArray += $charSet.Upper | Get-Random -Count 4
-              $passwordArray += $charSet.Lower | Get-Random -Count 4
-              $passwordArray += $charSet.Number | Get-Random -Count 4
-              $passwordArray += $charSet.Special | Get-Random -Count 4
-              
-              $generatedPassword = -join ($passwordArray | Sort-Object { Get-Random })
-              $securePasswordObj = ConvertTo-SecureString $generatedPassword -AsPlainText -Force
-              
-              if (Get-LocalUser -Name $targetUser -ErrorAction SilentlyContinue) {
-                  Remove-LocalUser -Name $targetUser -Confirm:$false
-              }
-
-              New-LocalUser -Name $targetUser -Password $securePasswordObj -AccountNeverExpires -PasswordNeverExpires
-              Add-LocalGroupMember -Group "Administrators" -Member $targetUser
-              Add-LocalGroupMember -Group "Remote Desktop Users" -Member $targetUser
-
-              $compiledCredentials += "Kullanici: $targetUser | Sifre: $generatedPassword"
-          }
-
-          $envDelimiter = "ENTERPRISE_CREDENTIALS_BLOCK"
-          echo "RDP_CREDENTIALS_OUTPUT<<$envDelimiter" >> $env:GITHUB_ENV
-          $compiledCredentials -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          echo "$envDelimiter" >> $env:GITHUB_ENV
-
-      - name: Launch Secure TCP Tunneling Gateway
+      - name: Tunel Baslat
         run: |
           Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
           Start-Sleep -Seconds 10
 
-      - name: Output Connection Matrix and Maintain Active Lease
+      - name: Bilgileri Goster
         run: |
-          Write-Host "`n=========================================================="
-          Write-Host "=== RDP BAGLANTI EKRANI VE ERISIM BILGILERI ==="
-          Write-Host "=========================================================="
-          Write-Host "$env:RDP_CREDENTIALS_OUTPUT"
-          Write-Host "=========================================================="
-          
-          while ($true) {
-              Start-Sleep -Seconds 300
-          }
+          Write-Host "=== RDP BILGILERI ==="
+          Write-Host "$env:RDP_C"
+          while ($true) { Start-Sleep -Seconds 300 }
           

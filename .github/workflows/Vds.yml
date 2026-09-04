@@ -36,8 +36,8 @@ jobs:
 
       - name: Baglanti Ver
         run: |
-          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
-          Start-Sleep -Seconds 8
+          Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net" -NoNewWindow
+          Start-Sleep -Seconds 10
 
       - name: Loglar
         run: |

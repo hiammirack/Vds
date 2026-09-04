@@ -1,15 +1,13 @@
-name: RDP
+name: w
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-rdp:
+  rdp:
     runs-on: windows-latest
-    timeout-minutes: 3600
-
     steps:
-      - name: RDP Ayarlari
+      - name: Ayarlar
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
@@ -17,7 +15,7 @@ jobs:
           netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
-      - name: Kullanicilari Olustur
+      - name: Kullanicilar
         run: |
           Add-Type -AssemblyName System.Security
           $u = @()
@@ -31,19 +29,19 @@ jobs:
               Add-LocalGroupMember -Group "Remote Desktop Users" -Member $n
               $u += "Kullanici: $n | Sifre: $p"
           }
-          $d = "CRED_BLOCK"
-          echo "RDP_C<<$d" >> $env:GITHUB_ENV
+          $d = "CC"
+          echo "RC<<$d" >> $env:GITHUB_ENV
           $u -join "`n" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$d" >> $env:GITHUB_ENV
 
-      - name: Tunel Baslat
+      - name: Baglanti Ver
         run: |
           Start-Process -FilePath "ssh.exe" -ArgumentList "-o StrictHostKeyChecking=no -p 80 tcp://a.pinggy.io:0:localhost:3389" -NoNewWindow
-          Start-Sleep -Seconds 10
+          Start-Sleep -Seconds 8
 
-      - name: Bilgileri Goster
+      - name: Loglar
         run: |
-          Write-Host "=== RDP BILGILERI ==="
-          Write-Host "$env:RDP_C"
+          Write-Host "=== IP VE SIFRELER ==="
+          Write-Host "$env:RC"
           while ($true) { Start-Sleep -Seconds 300 }
           
